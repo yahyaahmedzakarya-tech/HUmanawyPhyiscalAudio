@@ -50,13 +50,6 @@ Protocol: 12-byte header (sample rate, channels, bits per sample as big-endian i
 - The PC program is a console app for now.
 - WASAPI loopback sends nothing during silence, so you may hear a small click when audio resumes.
 
-## Roadmap
-
-- [ ] Remember the chosen audio device
-- [ ] Auto-start the receiver when the app opens
-- [ ] Simple GUI for the PC side
-- [ ] Lower-latency buffer options
-
 ## Contributing
 
 Issues and pull requests are welcome, especially reports of which old phones and Android versions work.
