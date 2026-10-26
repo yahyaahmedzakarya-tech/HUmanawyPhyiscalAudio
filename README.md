@@ -1,4 +1,4 @@
-# HUmanawyPhyiscalAudio
+# HUmanawyPhysicalAudio
 
 **Stream your Windows PC's audio to an Android phone over USB, built for old phones.**
 
