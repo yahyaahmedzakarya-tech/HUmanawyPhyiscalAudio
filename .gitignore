@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+*.user
+adb.exe
+AdbWin*.dll
+.gradle/
+build/
+.idea/
+*.iml
+local.properties
+*.apk
+.kotlin/
