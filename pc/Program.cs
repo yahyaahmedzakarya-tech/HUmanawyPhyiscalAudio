@@ -41,6 +41,16 @@ static void Stream(MMDevice device)
     WriteInt(net, fmt.Channels);
     WriteInt(net, 16);
 
+    // Follow the Windows volume slider and mute button of this device.
+    // WASAPI loopback captures audio BEFORE the slider is applied, so we apply it ourselves.
+    var vol = device.AudioEndpointVolume;
+    var state = new VolumeState { Gain = vol.Mute ? 0f : vol.MasterVolumeLevelScalar };
+    AudioEndpointVolumeNotificationDelegate handler = data =>
+    {
+        state.Gain = data.Muted ? 0f : data.MasterVolume;
+    };
+    vol.OnVolumeNotification += handler;
+
     var failed = new ManualResetEventSlim();
     Exception? error = null;
 
@@ -49,27 +59,34 @@ static void Stream(MMDevice device)
         if (e.BytesRecorded == 0 || failed.IsSet) return;
         try
         {
-            byte[] pcm16 = FloatTo16(e.Buffer, e.BytesRecorded, fmt);
+            byte[] pcm16 = FloatTo16(e.Buffer, e.BytesRecorded, state.Gain);
             net.Write(pcm16, 0, pcm16.Length);
         }
         catch (Exception ex) { error = ex; failed.Set(); }
     };
     capture.RecordingStopped += (s, e) => { error ??= e.Exception; failed.Set(); };
 
-    capture.StartRecording();
-    failed.Wait();
-    capture.StopRecording();
+    try
+    {
+        capture.StartRecording();
+        failed.Wait();
+        capture.StopRecording();
+    }
+    finally
+    {
+        vol.OnVolumeNotification -= handler;
+    }
     throw error ?? new Exception("Capture stopped");
 }
 
-static byte[] FloatTo16(byte[] src, int count, WaveFormat fmt)
+static byte[] FloatTo16(byte[] src, int count, float gain)
 {
     // WASAPI loopback shared mode is IEEE float 32 in practice
     int samples = count / 4;
     var dst = new byte[samples * 2];
     for (int i = 0; i < samples; i++)
     {
-        float f = BitConverter.ToSingle(src, i * 4);
+        float f = BitConverter.ToSingle(src, i * 4) * gain;
         f = Math.Clamp(f, -1f, 1f);
         short s = (short)(f * 32767);
         dst[i * 2] = (byte)(s & 0xFF);        // little-endian PCM16
@@ -94,4 +111,9 @@ static void RunAdb(string args)
     })!;
     Console.WriteLine(p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd());
     p.WaitForExit();
+}
+
+class VolumeState
+{
+    public volatile float Gain = 1f;
 }
